@@ -19,20 +19,20 @@ function ParameterContainer(param::Dict{Symbol, Any})
 end
 function ParameterContainer(param::Dict{Symbol, Parameter})
     dim_lengths = Dict{Int64, Int64}()
-    dimvars = Dict{Int64, Vector{Symbol}}()
+    dim_vars = Dict{Int64, Vector{Symbol}}()
 
     for (key, value) in param
         if !haskey(dim_lengths, value.dim) && (value.dim != 0)
             # Generate new entry if a new (nonezero) dim is found
             push!(dim_lengths, value.dim => length(value.value))
-            push!(dimvars, value.dim => [key])
+            push!(dim_vars, value.dim => [key])
         elseif haskey(dim_lengths, value.dim)
             # Add a new key if dim already exists
             @assert(
                 dim_lengths[value.dim] == length(value.value),
                 "Length mismatch on dim $(value.dim) for $key"
             )
-            push!(dimvars[value.dim], key)
+            push!(dim_vars[value.dim], key)
         end
     end
 
@@ -49,18 +49,17 @@ function ParameterContainer(param::Dict{Symbol, Parameter})
 
     # Recast to arrays
     dim_lengths = [dim_lengths[i] for i in 1:Ndims]
-    dimvars = [dimvars[i] for i in 1:Ndims]
+    dim_vars = [dim_vars[i] for i in 1:Ndims]
 
     # cummulative dim lengths
     if Ndims == 0
-        cdl = 1; N = 1
+        cdl = [1]; N = 1
     else
         cdl = [reduce(*, dim_lengths[1:i-1], init=1) for i in 1:Ndims]
         N = reduce(*, dim_lengths, init=1)
     end
     println("Making $N parameter files")
 
-    N,
     ParameterContainer(
         param,
         Ndims,

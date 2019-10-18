@@ -19,7 +19,7 @@ struct Parameter{T}
     type_tag::DataType
 end
 Parameter(value) = Parameter(value, 0, typeof(value))
-Parameter(value, dim) = Parameter(value, dim, typeof(value))
+Parameter(value, dim) = Parameter(value, dim, dim == 0 ? typeof(value) : eltype(value))
 
 
 
@@ -29,10 +29,13 @@ Parameter(value, dim) = Parameter(value, dim, typeof(value))
 Promotes any `Pair(key, value)` in `parameters`, where `value` is not of type
 `Parameter`, to a `Pair(key, Parameter(value))`.
 """
-function promote!(parameters::Dict{Symbol, Any}; aliases)
+function promote!(parameters::Dict{Symbol, Any}; aliases=Dict{Symbol, Symbol}())
     ks = keys(parameters)
     for k in ks
-        !(typeof(v) <: Parameter) && parameters[k] = Parameter(parameters[k])
+        if !(typeof(parameters[k]) <: Parameter)
+            k in keys(aliases) && (k = aliases[k])
+            parameters[k] = Parameter(parameters[k])
+        end
     end
     convert(Dict{Symbol, Parameter}, parameters)
 end

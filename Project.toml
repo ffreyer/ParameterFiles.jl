@@ -2,3 +2,6 @@ name = "ParameterFiles"
 uuid = "f7a7c9be-f182-11e9-1d0e-d7ea8546481e"
 authors = ["ffreyer "]
 version = "0.1.0"
+
+[deps]
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
