@@ -11,4 +11,6 @@ export save, load
 
 include("utils.jl")
 
+include("../templates/templates.jl")
+
 end # module
