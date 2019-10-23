@@ -90,6 +90,29 @@ function get_value_index(p::ParameterContainer, linear_index::Int, key::Symbol)
 end
 
 
+### Iterator Interface
+
+
+function _get_parameter_pairs(p::ParameterContainer, idx::Int)
+    (
+        if v.dim == 0
+            (k, v.type_tag, v.value)
+        else
+            j = get_value_index(p, idx, v.dim)
+            (k, v.type_tag, v.value[j])
+        end for (k, v) in p.param
+    )
+end
+Base.iterate(p::ParameterContainer) = (_get_parameter_pairs(p, 1), 2)
+function Base.iterate(p::ParameterContainer, idx::Int)
+    if idx <= p.N
+        return (_get_parameter_pairs(p, idx), idx+1)
+    else
+        return nothing
+    end
+end
+
+
 
 """
     generate_name(p::ParameterContainer, linear_index)
