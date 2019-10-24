@@ -64,6 +64,78 @@ end
 
 
 
+mutable struct IndexTimePair
+    idxs::Vector{Int}
+    time::Float64
+end
+Base.isless(x::IndexTimePair, y::IndexTimePair) = x.time < y.time
+
+"""
+    bundle_parameters(
+        p::ParameterContainer,
+        runtime_estimation::Function,
+        target_runtime,
+        chunk_size
+    )
+
+Attempts to bundle sets of parameters in the given `ParameterContainer` such
+that each process takes roughly the same time ≤ `target_runtime`.
+
+For example, let's assume the `ParameterContainer` holds 30 parameters sets, of
+which 20 take one unit of time and 10 take two units of time. Let's further
+assume the cluster only allows us to use full nodes, each containing 10 CPU's,
+and that we may only use them for at most 2.5 units of time.
+Here we would use `bundle_parameters(p, estimator, 2.5, 10)` to bundle
+parameters, where `estimator` is a function estimating the runtime of each
+parameter set. This should return an array with 20 elements - the first 10
+including indices for two short simulation, the latter 10 one index for each
+long simulation.
+"""
+function bundle_parameters(
+        p::ParameterContainer,
+        runtime_estimation::Function,
+        target_runtime::Real,
+        chunk_size::Int
+    )
+
+    times = map(parameters => runtime_estimation(; parameters...), p)
+    maximum(times) > target_runtime && @warn(
+        "The estimated runtime exceeds the target. " *
+        "($(maximum(times)) > $target_runtime)"
+    )
+    total_time = sum(min.(target_runtime, times))
+    n_chunks = ceil(Int64, total_time / (chunk_size * target_time))
+    idxs = sortperm(times)
+
+    @label retry_label
+    jobs = map((length(times) - chunk?size * n_chunks + 1) : length(times)) do i
+        IndexTimePair([idxs[i]], times[i])
+    end
+    heapify!(jobs)
+
+    # Itertate: long jobs .. short jobs
+    for idx in reverse(idxs)
+        # get fastest job
+        job = heappop!(job)
+        # try to add time
+        if job.time + times[idx] < target_time
+            job.time += t
+            push!(job.idxs, idx)
+            heappush!(jobs, job)
+        else
+            # try again with more chunks
+            n_chunks += 1
+            @goto retry_label
+        end
+    end
+
+    return [job.idxs for job in jobs]
+end
+
+
+
+
+
 ################################################################################
 # Templating
 # do string interpolation at a later point - in a function call. This allows
