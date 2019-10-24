@@ -7,6 +7,7 @@ mutable struct ParameterContainer
     cdl::Vector{Int}
 end
 
+
 """
     ParameterContainer(parameters)
 
@@ -58,7 +59,6 @@ function ParameterContainer(param::Dict{Symbol, Parameter})
         cdl = [reduce(*, dim_lengths[1:i-1], init=1) for i in 1:Ndims]
         N = reduce(*, dim_lengths, init=1)
     end
-    println("Making $N parameter files")
 
     ParameterContainer(
         param,
@@ -87,6 +87,31 @@ function get_value_index(p::ParameterContainer, linear_index::Int, dim::Int)
 end
 function get_value_index(p::ParameterContainer, linear_index::Int, key::Symbol)
     get_value_index(p::ParameterContainer, linear_index::Int, p.param[k].dim)
+end
+
+
+################################################################################
+### Iterator Interface
+################################################################################
+
+
+function _get_parameter_pairs(p::ParameterContainer, idx::Int)
+    (
+        if v.dim == 0
+            (k, v.type_tag, v.value)
+        else
+            j = get_value_index(p, idx, v.dim)
+            (k, v.type_tag, v.value[j])
+        end for (k, v) in p.param
+    )
+end
+Base.iterate(p::ParameterContainer) = (_get_parameter_pairs(p, 1), 2)
+function Base.iterate(p::ParameterContainer, idx::Int)
+    if idx <= p.N
+        return (_get_parameter_pairs(p, idx), idx+1)
+    else
+        return nothing
+    end
 end
 
 
@@ -135,3 +160,27 @@ _default_name(v::Complex) = @sprintf("%s_%0.3f+%0.3fi", k, real(v), imag(v))
 _default_name(v::Function) = string(v)
 _default_name(v::Array) = mapreduce(_default_name, (a, b) -> "$(a)_$b", v)
 _default_name(v::Tuple) = mapreduce(_default_name, (a, b) -> "$(a)_$b", v)
+
+
+################################################################################
+### show
+################################################################################
+
+function Base.show(io::IO, ::MIME"text/plain", p::ParameterContainer)
+    print(io,
+        "ParameterContainer(", p.N, " Sets of ",
+        length(p.param), " Parameters each)"
+    )
+end
+function Base.show(io::IO, p::ParameterContainer)
+    print(io,
+        "ParameterContainer(", p.N, " Sets of ",
+        length(p.param), " Parameters each)\n"
+    )
+    for (i, parameters) in enumerate(p)
+        println(
+            io, "\t", i, "\t [",
+            join((":$k => $v" for (k, _, v) in parameters), ", "), "]"
+        )
+    end
+end

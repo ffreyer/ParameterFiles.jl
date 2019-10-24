@@ -16,43 +16,22 @@ function save(
         filenames = ("$(i).param" for i in 1:p.N),
         overwrite = false
     )
+
     if !overwrite && any(isfile(joinpath(path, fn)) for fn in filenames)
         error(
             "One or more files would be overwritten in '$path'. Set " *
             "`overwrite = true` to allow this."
         )
     end
-    for (i, filename) in zip(1:p.N, filenames)
+
+    for (parameters, filename) in zip(p, filenames)
         open(joinpath(path, filename), "w") do f
-            write_parameters!(f, p, i)
+            for (key, type_tag, value) in parameters
+                write(file, key, delim, type_tag, delim, value)
+                write(file, "\n")
+            end
         end
     end
-end
-
-
-
-"""
-    write_parameters!(file::IOStream, p::ParameterContainer, linear_index)
-
-Writes parameters corresponding to some `linear_index` to a `file`.
-"""
-function write_parameters!(
-        file::IOStream, p::ParameterContainer, idx;
-        delim="\t"
-    )
-
-    for (k, v) in p.param
-        write(file, "$k", delim, "$(v.type_tag)", delim)
-        if v.dim == 0
-            write(file, string(v.value))
-        else
-            j = get_value_index(p, idx, v.dim)
-            write(file, string(v.value[j]))
-        end
-        write(file, "\n")
-    end
-
-    nothing
 end
 
 
