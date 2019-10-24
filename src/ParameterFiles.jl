@@ -1,6 +1,6 @@
 module ParameterFiles
 
-using Printf
+using Printf, DataStructures
 
 include("Parameters.jl")
 export Parameter
