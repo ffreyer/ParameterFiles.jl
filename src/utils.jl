@@ -98,28 +98,31 @@ function bundle_parameters(
         chunk_size::Int
     )
 
-    times = map(parameters => runtime_estimation(; parameters...), p)
+    times = map(p) do parameters
+        d = Dict((k => p for (k, _, p) in parameters))
+        runtime_estimation(; d...)
+    end
     maximum(times) > target_runtime && @warn(
-        "The estimated runtime exceeds the target. " *
-        "($(maximum(times)) > $target_runtime)"
+        "The estimated runtime exceeds the target for atleast one parameter " *
+        "set. ($(maximum(times)) > $target_runtime)"
     )
     total_time = sum(min.(target_runtime, times))
-    n_chunks = ceil(Int64, total_time / (chunk_size * target_time))
+    n_chunks = ceil(Int64, total_time / (chunk_size * target_runtime))
     idxs = sortperm(times)
 
     @label retry_label
-    jobs = map((length(times) - chunk?size * n_chunks + 1) : length(times)) do i
+    jobs = map((length(times) - chunk_size * n_chunks + 1) : length(times)) do i
         IndexTimePair([idxs[i]], times[i])
     end
     heapify!(jobs)
 
     # Itertate: long jobs .. short jobs
-    for idx in reverse(idxs)
+    for idx in reverse(idxs[1 : end - chunk_size * n_chunks])
         # get fastest job
-        job = heappop!(job)
+        job = heappop!(jobs)
         # try to add time
-        if job.time + times[idx] < target_time
-            job.time += t
+        if job.time + times[idx] < target_runtime
+            job.time += times[idx]
             push!(job.idxs, idx)
             heappush!(jobs, job)
         else
@@ -129,7 +132,7 @@ function bundle_parameters(
         end
     end
 
-    return [job.idxs for job in jobs]
+    return [job.idxs for job in jobs], [job.time for job in jobs]
 end
 
 

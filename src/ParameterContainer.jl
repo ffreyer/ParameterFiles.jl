@@ -86,7 +86,7 @@ function get_value_index(p::ParameterContainer, linear_index::Int, dim::Int)
     div(linear_index-1, p.cdl[dim]) % p.dim_length[dim] + 1
 end
 function get_value_index(p::ParameterContainer, linear_index::Int, key::Symbol)
-    get_value_index(p::ParameterContainer, linear_index::Int, p.param[k].dim)
+    get_value_index(p::ParameterContainer, linear_index::Int, p.param[key].dim)
 end
 
 
@@ -113,6 +113,7 @@ function Base.iterate(p::ParameterContainer, idx::Int)
         return nothing
     end
 end
+Base.length(p::ParameterContainer) = p.N
 
 
 
@@ -137,7 +138,7 @@ function generate_name(
         delim = "_"
     )
     pieces = String[]
-    for ks in p.dimvars
+    for ks in p.dim_vars
         for k in ks
             k in skip_keys && continue
             idx = get_value_index(p, index, k)
