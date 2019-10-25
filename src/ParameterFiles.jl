@@ -11,6 +11,8 @@ export save, load
 
 include("utils.jl")
 export exp_range, focused_exp_range, bundle_parameters
+include("templating.jl")
+export generate_file
 
 include("../templates/templates.jl")
 
