@@ -99,6 +99,8 @@ function _get_parameter_pairs(p::ParameterContainer, idx::Int)
     (
         if v.dim == 0
             (k, v.type_tag, v.value)
+        elseif v.dim == -1
+            (k, v.type_tag, v.value[idx])
         else
             j = get_value_index(p, idx, v.dim)
             (k, v.type_tag, v.value[j])
@@ -114,6 +116,34 @@ function Base.iterate(p::ParameterContainer, idx::Int)
     end
 end
 Base.length(p::ParameterContainer) = p.N
+
+
+"""
+    generate_names!(p::ParameterContainer[; kwargs...])
+
+Generates a (unique) filename for each parameter set and adds them to the
+ParameterContainer. By default, filenames are pushed with key `:filename`.
+
+Keyword Arguments:
+- `key = :filename`: The key to use for the generated filenames.
+- `skip_keys = Symbol[]`: A list of keys to skip when generating a filename.
+- `key_maps = Dict{Symbol, Function}()`: This kwarg can be used to specify name
+generating functions `f(key, parameter.value)` for specific Parameter `key`s.
+- `max_length = 30`: Each parameter (that isn't skipped) generates a string that
+will later be combined to give a filename. This is the maximum length of one
+such string.
+- `delim = "_"`: The seperator by which the generated strings are combined
+"""
+function generate_names!(p::ParameterContainer; key = :filename, kwargs...)
+    @assert !haskey(p.param, key)
+    push!(
+        p.param,
+        key => Parameter([generate_name(p, i; kwargs...) for i in 1:p.N], -1)
+    )
+end
+function generate_names(p::ParameterContainer; kwargs...)
+    [generate_name(p, i; kwargs...) for i in 1:p.N]
+end
 
 
 

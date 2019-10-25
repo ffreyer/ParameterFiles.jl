@@ -1,5 +1,5 @@
 """
-    save(p::ParameterContainer)
+    save(p::ParameterContainer[, chunks])
 
 Saves all parameter sets in the `ParameterContainer`.
 
@@ -14,9 +14,10 @@ function save(
         p::ParameterContainer;
         path="",
         filenames = ("$(i).param" for i in 1:p.N),
+        delim = "\t",
         overwrite = false
     )
-
+    isdir(path) || mkdir(path)
     if !overwrite && any(isfile(joinpath(path, fn)) for fn in filenames)
         error(
             "One or more files would be overwritten in '$path'. Set " *
@@ -25,10 +26,9 @@ function save(
     end
 
     for (parameters, filename) in zip(p, filenames)
-        open(joinpath(path, filename), "w") do f
+        open(joinpath(path, filename), "w") do file
             for (key, type_tag, value) in parameters
-                write(file, key, delim, type_tag, delim, value)
-                write(file, "\n")
+                println(file, key, delim, type_tag, delim, value)
             end
         end
     end
@@ -40,9 +40,10 @@ function save(
         chunks::Vector{Vector{Int}};
         path="",
         filenames = ("$(i).param" for i in 1:length(chunks)),
+        delim = "\t",
         overwrite = false
     )
-
+    isdir(path) || mkdir(path)
     if !overwrite && any(isfile(joinpath(path, fn)) for fn in filenames)
         error(
             "One or more files would be overwritten in '$path'. Set " *
@@ -51,18 +52,19 @@ function save(
     end
 
     for (chunk, filename) in zip(chunks, filenames)
-        open(joinpath(path, filename), "w") do f
-            write(f, "chunks\t$(length(chunk))\n")
-            for (key, param) in p.params
+        open(joinpath(path, filename), "w") do file
+            write(file, "chunks\t$(length(chunk))\n")
+            for (key, param) in p.param
                 values = if param.dim == 0
                     [param.value for _ in chunk]
+                elseif param.dim == -1
+                    [param.value[i] for i in chunk]
                 else
                     map(chunk) do i
                         param.value[get_value_index(p, i, param.dim)]
                     end
                 end
-                write(file, key, delim, param.type_tag, delim, values)
-                write(file, "\n")
+                println(file, key, delim, param.type_tag, delim, values)
             end
         end
     end
@@ -73,11 +75,19 @@ end
 
 ################################################################################
 
+"""
+    load(filename[: path ="", delim="\t"])
 
-function load(filename::String; delim="\t")
+Loads parameters from a previously saved parameter file. Returns a dictionary
+`key::Symbol => value` which can be passed to a function as keyword arguments
+via `foo(; dict...)`.
+If the ParameterContainer was saved with chunks, this will return an array of
+dictionaries instead.
+"""
+function load(filename::String; path="", delim="\t")
     output = Dict{Symbol, Any}()
     ischunked = false
-    open(filename, "r") do f
+    open(joinpath(path, filename), "r") do f
         for line in eachline(f)
             if startswith(line, "chunks")
                 @assert isempty(output) "\"chunks\" should appear first in the file."
