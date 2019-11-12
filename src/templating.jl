@@ -100,44 +100,70 @@ function resolve(str, defaults::Dict{Symbol, Any} = Dict{Symbol, Any}(), debug=f
 end
 function resolve(str, debug; kwargs...)
     # Make kwargs locally available
-    let
-        debug && @info "kwargs = $kwargs"
-        for (k, v) in kwargs
-            debug && @info k, v
-            eval(:($k = $v))
-        end
+    debug && @info "kwargs = $kwargs"
+    kwdict = Dict(kwargs)
+    debug && @info "kwdict = $kwdict"
+    # for (k, v) in kwargs
+    #     debug && @info k, v
+    #     @eval :($k = $v)
+    # end
 
-        state = NormalState()
-        blocks = String[]
-        buffer = Char[]
-        for (i, c) in enumerate(str)
-            debug && print(rpad(string(typeof(state)), 40) * " --($c)--> ")
-            state = step(state, Val(c))
-            debug && println(typeof(state))
-            if state isa InterpolationStartState
-                push!(blocks, join(buffer))
-                empty!(buffer)
-            elseif state isa InterpolationDoneState
-                was_bracket_state = buffer[1] == '('
-                was_bracket_state && push!(buffer, ')')
+    state = NormalState()
+    blocks = String[]
+    buffer = Char[]
+    for (i, c) in enumerate(str)
+        debug && print(rpad(string(typeof(state)), 40) * " --($c)--> ")
+        state = step(state, Val(c))
+        debug && println(typeof(state))
+        if state isa InterpolationStartState
+            push!(blocks, join(buffer))
+            empty!(buffer)
+        elseif state isa InterpolationDoneState
+            was_bracket_state = buffer[1] == '('
+            was_bracket_state && push!(buffer, ')')
 
-                debug && @info buffer
-                command = Meta.parse(join(buffer))
-                debug && @info command
-                value = eval(command)
-                push!(blocks, string(value))
-
-                empty!(buffer)
-                !was_bracket_state && push!(buffer, c)
-            elseif state isa IgnoreState
-            else # Normal, WordMatch, BracketMatch
-                push!(buffer, c)
+            debug && @info buffer
+            command = Meta.parse(join(buffer))
+            debug && @info command
+            debug && dump(command)
+            try
+                command = rec_meta_replace(command, kwdict)
+            catch e
+                @error "In expression $command:"
+                rethrow(e)
             end
-            debug && println(buffer)
+            value = eval(command)
+            push!(blocks, string(value))
+
+            empty!(buffer)
+            !was_bracket_state && push!(buffer, c)
+        elseif state isa IgnoreState
+        else # Normal, WordMatch, BracketMatch
+            push!(buffer, c)
         end
-        push!(blocks, join(buffer))
-        join(blocks)
+        debug && println(buffer)
     end
+    push!(blocks, join(buffer))
+    join(blocks)
+end
+
+rec_meta_replace(x, kwdict::Dict{Symbol, Any}) = x
+function rec_meta_replace(s::Symbol, kwdict::Dict{Symbol, Any})
+    if haskey(kwdict, s)
+        return kwdict[s]
+    else
+        error(
+            "Failed to interpolate $s into surrounding expression. Did you " *
+            "forget to pass it?"
+        )
+    end
+end
+function rec_meta_replace(expr::Expr, kwdict::Dict{Symbol, Any})
+    for i in eachindex(expr.args)
+        (i == 1) && (expr.head == :call) && continue
+        expr.args[i] = rec_meta_replace(expr.args[i], kwdict)
+    end
+    expr
 end
 
 
