@@ -1,13 +1,25 @@
 module SLURM
 
 
+const DEFAULTS = Dict{Symbol, Any}(
+    :mail_types => ["NONE"],
+    :mail_user => "",
+    :julia => "julia",
+    :julia_args => "",
+    :modules => "",
+    :body => "",
+    :sbatch => ""
+)
+
+
+
 """
     SLURM.arrayjob
 
 A template for an array job, starting multiple serial jobs.
 
 Requires:
-- `jobname::String`: The name displayed in the queue
+- `job_name::String`: The name displayed in the queue
 - `mail_types::Iterable{String}`: Events which trigger an email. (NONE, BEGIN, END, FAIL, ALL)
 - `mail_user::String`: E-Mail adress to use
 - `mem`: Memory limit of the job (Int64 or String)
@@ -21,7 +33,7 @@ Requires:
 """
 const arrayjob = """
 #!/bin/bash
-#SBATCH --job-name=\$jobname
+#SBATCH --job-name=\$job_name
 #SBATCH --mail-type=\$(join(mail_types, ","))
 #SBATCH --mail-user=\$mail_user
 #SBATCH --ntasks=1
@@ -33,6 +45,7 @@ const arrayjob = """
 
 \$julia \$julia_args \$julia_script \$args
 """
+
 
 
 """
@@ -60,6 +73,43 @@ const chunked_serial_job = """
 #SBATCH --mem=\$mem
 #SBATCH --nodes=\$nodes
 #SBATCH --ntasks-per-node=\$ntasks_per_node
+
+\$julia \$julia_args \$julia_script \$args
+"""
+
+
+
+"""
+    SLURM.parallel_job
+
+A template for a simple parallel job, starting a single (master) process with
+`ntasks` cores available.
+
+Requires:
+- `job_name::String`: The name displayed in the queue
+- `mem_per_cpu`: Memory limit per task (process) (Int or String)
+- `time::String`: Time limit of the job (hrs:min:sec)
+- `ntasks`: Number of tasks (processes, Int or String)
+- `cpus_per_task`: Number of cpus (threads) per task (process) (Int or String)
+- `modules::String`: E.g. "module load julia1.2.0" or "", can be multiline
+- `account::String`: Account name
+- `julia::String`: Path to julia
+- `julia_args::String`: arguments to pass to julia
+- `julia_script::String`: Path to the script to execute
+- `args::String`: Arguments passed to the julia script
+"""
+const parallel_job = """
+#!/bin/bash -l
+#SBATCH --time=\$time
+#SBATCH --account=\$account
+#SBATCH --mem-per-cpu=\$mem_per_cpu
+#SBATCH --ntasks=\$ntasks
+#SBATCH --cpus-per-task=\$cpus_per_task
+#SBATCH --job-name=\$job_name
+
+\$modules
+
+\$body
 
 \$julia \$julia_args \$julia_script \$args
 """
