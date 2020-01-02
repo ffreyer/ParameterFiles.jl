@@ -59,7 +59,7 @@ rpad(s, N) = length(s) < N ? s * " "^(N - length(s)) : s
 
 
 """
-    resolve(string[defaults=Dict{Symbol, Any}(), debug=false; kwargs...])
+    resolve(string[, defaults=Dict{Symbol, Any}(), debug=false]; kwargs...)
 
 Interpolates values (and calculations) after `\$` in a given string, much like
 usual string interpolation. Any key-value pair passed through `kwargs` or
@@ -91,6 +91,10 @@ would finish the string interpolation and return the resulting string.
 This function does not always throw an error if a key value pair is missing. For
 example, if `\$time` is part of the given `str` it may interpolate `Base.time` if
 `time` is not given through `kwargs` or `defaults`.
+
+### Note:
+
+Some SLURM templates are reachable with `SLURM.{template_name}`.
 """
 function resolve(str, defaults::Dict{Symbol, Any} = Dict{Symbol, Any}(), debug=false; kwargs...)
     forward = Dict{Symbol, Any}([
