@@ -12,7 +12,7 @@ export save, load
 include("utils.jl")
 export exp_range, focused_exp_range, distribute
 include("templating.jl")
-export generate_file
+export generate_file, resolve
 
 include("../templates/templates.jl")
 
