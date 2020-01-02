@@ -85,7 +85,7 @@ Example:
 ```
 julia> pc = ParameterContainer(Dict(:iterations => Parameter(1:10, 1)))
 julia> chunks, times = distribute(pc, (; iterations, kwargs...) -> iterations, 3)
-([[10, 5, 3], [9, 6, 4], [8, 7, 2, 1]], [18.0, 19.0, 18.0])
+([[[10, 5, 3], [9, 6, 4], [8, 7, 2, 1]]], [18.0, 19.0, 18.0])
 ```
 """
 function distribute(
@@ -114,24 +114,21 @@ function distribute(
         heappush!(jobs, job)
     end
 
-    return [job.idxs for job in jobs], [job.time for job in jobs]
+    return [[job.idxs for job in jobs]], [job.time for job in jobs]
 end
 
 
 
-# What was the point of this again?
-# It increases the number of blocks when it fails to stay in below
-# target_runtime...
 """
     distribute(
         p::ParameterContainer,
         runtime_estimation::Function,
         target_runtime,
-        chunk_size
+        N_blocks
     )
 
-Distributes parameter sets into `K * chunk_size` blocks such that every block
-takes less time than the target_runtime. To estimate the time used per
+Distributes parameter sets into `K * N_blocks` such that every block
+takes less time than the `target_runtime`. To estimate the time used per
 parameter set, the function `runtime_estimation` is queried with parameters as
 keywords. If any parameter set exceeds the target_runtime a warning will be
 displayed and the parameter set will get its own group.
@@ -143,7 +140,7 @@ julia> chunks, times = distribute(
     12,
     3
 )
-([[7, 2], [6, 3], [5, 4], [10], [9], [8, 1]], [9.0, 9.0, 9.0, 10.0, 9.0, 9.0])
+([[[7, 2], [6, 3], [5, 4]], [[10], [9], [8, 1]]], [9.0, 9.0, 9.0, 10.0, 9.0, 9.0])
 """
 function distribute(
         p::ParameterContainer,
@@ -186,5 +183,8 @@ function distribute(
         end
     end
 
-    return [job.idxs for job in jobs], [job.time for job in jobs]
+    return (
+        [[job.idxs for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
+        [job.time for job in jobs]
+    )
 end

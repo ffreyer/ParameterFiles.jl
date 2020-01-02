@@ -37,11 +37,11 @@ end
 
 function save(
         p::ParameterContainer,
-        chunks::Vector{Vector{Int}};
+        chunks::Vector{Vector{Vector{Int}}};
         path="",
         filenames = ("$(i).param" for i in 1:length(chunks)),
         delim = "\t",
-        overwrite = false
+        overwrite = false,
     )
     isdir(path) || mkdir(path)
     if !overwrite && any(isfile(joinpath(path, fn)) for fn in filenames)
@@ -51,20 +51,13 @@ function save(
         )
     end
 
-    for (chunk, filename) in zip(chunks, filenames)
+    for (sub_chunks, filename) in zip(chunks, filenames)
         open(joinpath(path, filename), "w") do file
-            write(file, "chunks\t$(length(chunk))\n")
-            for (key, param) in p.param
-                values = if param.dim == 0
-                    [param.value for _ in chunk]
-                elseif param.dim == -1
-                    [param.value[i] for i in chunk]
-                else
-                    map(chunk) do i
-                        param.value[get_value_index(p, i, param.dim)]
-                    end
-                end
-                println(file, key, delim, param.type_tag, delim, values)
+            print(file, "chunks\t")
+            join(file, string.(length.(sub_chunks)), "\t")
+            println(file)
+            for (key, type_tag, values) in _get_parameter_set(p, vcat(sub_chunks...))
+                println(file, key, delim, type_tag, delim, values)
             end
         end
     end
@@ -87,12 +80,13 @@ dictionaries instead.
 function load(filename::String; path="", delim="\t")
     output = Dict{Symbol, Any}()
     ischunked = false
+    chunk_sizes = Int64[]
     open(joinpath(path, filename), "r") do f
         for line in eachline(f)
             if startswith(line, "chunks")
                 @assert isempty(output) "\"chunks\" should appear first in the file."
-                chunk_size = parse(Int64, split(line, "\t")[2])
-                output = [Dict{Symbol, Any}() for _ in 1:chunk_size]
+                chunk_sizes = parse.(Int64, split(line, "\t")[2:end])
+                output = [[Dict{Symbol, Any}() for _ in 1:L] for L in chunk_sizes]
                 ischunked = true
                 continue
             end
@@ -108,9 +102,15 @@ function load(filename::String; path="", delim="\t")
                 end
             else
                 xs = eval(Meta.parse(data))
-                @assert length(xs) == length(output)
+                @assert length(xs) == sum(chunk_sizes)
+                j = 1
+                block_start = 0
                 for (i, x) in enumerate(xs)
-                    push!(output[i], Symbol(key) => x)
+                    push!(output[j][i-block_start], Symbol(key) => x)
+                    if chunk_sizes[j] <= i - block_start
+                        block_start += chunk_sizes[j]
+                        j += 1
+                    end
                 end
             end
         end

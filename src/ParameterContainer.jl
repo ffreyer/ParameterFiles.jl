@@ -113,7 +113,7 @@ end
 ### Iterator Interface
 ################################################################################
 
-isempty(p::ParameterContainer) = p.N == 0
+Base.isempty(p::ParameterContainer) = p.N == 0
 
 
 function _get_parameter_tuple(
@@ -130,24 +130,57 @@ function _get_parameter_tuple(
     end
 end
 function _get_parameter_tuple(
+        pc::ParameterContainer, key::Symbol, p::Parameter, idxs::AbstractArray
+    )
+    if p.dim == -1
+        return (key, p.type_tag, p.value[idxs])
+    elseif p.dim == 0
+        return (key, p.type_tag, fill(p.value, length(idxs)))
+    elseif p.dim > 0
+        js = map(idx -> get_value_index(pc, idx, p.dim), idxs)
+        return (key, p.type_tag, p.value[js])
+    else
+        throw(ErrorException("Dimension $(p.dim) for key $key cannot be parsed."))
+    end
+end
+
+function _get_parameter_tuple(
         pc::ParameterContainer, key::Symbol, p::DerivedParameter, idx::Int
     )
-    input_values = [_get_parameter_tuple(pc, k, pc.param[k], idx) for k in p.keys]
+    input_values = map(p.keys) do k
+        last(_get_parameter_tuple(pc, k, pc.param[k], idx))
+    end
     value = p.func(map(last, input_values)...)
     (key, typeof(value), value)
 end
+function _get_parameter_tuple(
+        pc::ParameterContainer, key::Symbol, p::DerivedParameter,
+        idxs::AbstractArray
+    )
+    input_values = map(p.keys) do k
+        last(_get_parameter_tuple(pc, k, pc.param[k], idxs))
+    end
+    value = p.func.(input_values...)
+    (key, eltype(value), value)
+end
 
-function _get_parameter_tuples(p::ParameterContainer, idx::Int)
+# Maybe a bit missnamed...
+# This returns a parameter set for a given index idx, if idx is an Integer, i.e.
+# (key, type, value) for each paramater at idx
+# OR
+# (key, type, value[idx[1]] ... value[idx[end]])
+# if idx is an array of indices
+function _get_parameter_set(p::ParameterContainer, idx)
     [_get_parameter_tuple(p, k, v, idx) for (k, v) in p.param]
 end
 
 function Base.iterate(p::ParameterContainer)
     isempty(p) && return nothing
-    (_get_parameter_tuples(p, 1), 2)
+    (_get_parameter_set(p, 1), 2)
 end
 function Base.iterate(p::ParameterContainer, idx::Int)
     if idx <= p.N
-        return (_get_parameter_tuples(p, idx), idx+1)
+        return (_get_parameter_set(p, idx), idx+1)
     else
         return nothing
     end
