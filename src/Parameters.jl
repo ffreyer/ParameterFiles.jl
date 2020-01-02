@@ -97,7 +97,7 @@ DerivedParameter(args...) = DerivedParameter(args[1:end-1], args[end])
 Promotes any `Pair(key, value)` in `parameters`, where `value` is not of type
 `Parameter` to a `Pair(key, Parameter(value))`.
 """
-function promote!(parameters::Dict{Symbol, Any}; aliases=Dict{Symbol, Symbol}())
+function promote!(parameters::Dict{Symbol, <: Any}; aliases=Dict{Symbol, Symbol}())
     ks = keys(parameters)
     for k in ks
         if !(parameters[k] isa AbstractParameter)
@@ -105,5 +105,5 @@ function promote!(parameters::Dict{Symbol, Any}; aliases=Dict{Symbol, Symbol}())
             parameters[k] = Parameter(parameters[k])
         end
     end
-    convert(Dict{Symbol, Parameter}, parameters)
+    convert(Dict{Symbol, AbstractParameter}, parameters)
 end

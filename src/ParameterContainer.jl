@@ -15,10 +15,10 @@ Returns the total (cummulative) number of parameters `N` and a function that
 provides a mapping from a linear index `n` (1 ≤ n ≤ N) and a given `dim` to
 the correct index of `parameter.value`.
 """
-function ParameterContainer(param::Dict{Symbol, Any})
+function ParameterContainer(param::Dict{Symbol, <:Any})
     ParameterContainer(promote!(param))
 end
-function ParameterContainer(param::Dict{Symbol, T}) where {T <: AbstractParameter}
+function ParameterContainer(param::Dict{Symbol, AbstractParameter})
     dim_lengths = Dict{Int64, Int64}()
     dim_vars = Dict{Int64, Vector{Symbol}}()
     min_N = 0
