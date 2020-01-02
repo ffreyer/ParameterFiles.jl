@@ -3,7 +3,7 @@ module ParameterFiles
 using Printf, DataStructures
 
 include("Parameters.jl")
-export Parameter
+export Parameter, DerivedParameter
 include("ParameterContainer.jl")
 export ParameterContainer
 include("FileIO.jl")

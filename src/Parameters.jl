@@ -2,37 +2,105 @@
 # do transformations
 # e.g. :T => something  -->  :Ts => [something]
 
+abstract type AbstractParameter end
+
 """
     Parameter(value[, dim=0, type_tag=typeof(value)])
 
 Generates a Parameter with some `value` acting on some `dim`.
 
+When parameter sets are generated Parameters are varied based on their
+dimension.
+
+- If `dim = -1` the `Parameter` is assumed to have one value for each parameter
+set.
 - If `dim = 0` the `Parameter` is viewed as constant.
-- If `dim > 0` the `Parameter` is viewed as a collection of values. To generate
-the parameter file we iterate through these values. `dim` essentially describes
-the nesting level of the loop which does this iteration. `Parameter`s with the
-same dimension are synchronized like `zip(values1, values2)`.
+- If `dim > 0` the `Parameter` is viewed as a collection of values that varies
+in one dimension but is repeated in other dimensions.
+
+For example:
+
+```
+param = Dict(
+    :A => Parameter(1.0, 0),
+    :B => Parameter([1.0, 2.0], 1),
+    :C => Parameter([0.1, 0.2, 0.3], 2),
+    :D => Parameter(1:6, -1),
+)
+for parameter_set in ParameterContainer(param)
+    println(parameter_set)
+end
+```
+
+Results in the parameter sets
+
+```
+[(:A, Float64, 1.0), (:B, Float64, 1.0), (:C, Float64, 0.1), (:D, Int64, 1)]
+[(:A, Float64, 1.0), (:B, Float64, 2.0), (:C, Float64, 0.1), (:D, Int64, 2)]
+[(:A, Float64, 1.0), (:B, Float64, 1.0), (:C, Float64, 0.2), (:D, Int64, 3)]
+[(:A, Float64, 1.0), (:B, Float64, 2.0), (:C, Float64, 0.2), (:D, Int64, 4)]
+[(:A, Float64, 1.0), (:B, Float64, 1.0), (:C, Float64, 0.3), (:D, Int64, 5)]
+[(:A, Float64, 1.0), (:B, Float64, 2.0), (:C, Float64, 0.3), (:D, Int64, 6)]
+```
 """
-struct Parameter{T}
+struct Parameter{T} <: AbstractParameter
     value::T
     dim::Int64
     type_tag::DataType
 end
-Parameter(value) = Parameter(value, 0, typeof(value))
-Parameter(value, dim) = Parameter(value, dim, dim == 0 ? typeof(value) : eltype(value))
+function Parameter(value, dim=0)
+    Parameter(value, dim, dim == 0 ? typeof(value) : eltype(value))
+end
 
+
+"""
+    DerivedParameter(inputs..., function)
+
+A DerivedParameter is parameter that is derived from other Parameters in the
+dictionary.
+
+For example:
+
+```
+param = Dict(
+    :B => Parameter([1.0, 2.0], 1),
+    :C => Parameter([0.1, 0.2, 0.3], 2),
+    :E => DerivedParameter(:B, x -> -x)
+)
+for parameter_set in ParameterContainer(param)
+    println(parameter_set)
+end
+```
+
+Results in the parameter sets
+
+```
+[(:B, Float64, 1.0), (:C, Float64, 0.1), (:E, Float64, -1.0)]
+[(:B, Float64, 2.0), (:C, Float64, 0.1), (:E, Float64, -2.0)]
+[(:B, Float64, 1.0), (:C, Float64, 0.2), (:E, Float64, -1.0)]
+[(:B, Float64, 2.0), (:C, Float64, 0.2), (:E, Float64, -2.0)]
+[(:B, Float64, 1.0), (:C, Float64, 0.3), (:E, Float64, -1.0)]
+[(:B, Float64, 2.0), (:C, Float64, 0.3), (:E, Float64, -2.0)]
+```
+"""
+struct DerivedParameter{N, FT <: Function} <: AbstractParameter
+    keys::NTuple{N, Symbol}
+    func::FT
+end
+DerivedParameter(args...) = DerivedParameter(args[1:end-1], args[end])
+# DerivedParameter(key::Symbol, func::Function) = DerivedParameter((key,), func)
 
 
 """
     promote!(parameters::Dict)
 
 Promotes any `Pair(key, value)` in `parameters`, where `value` is not of type
-`Parameter`, to a `Pair(key, Parameter(value))`.
+`Parameter` to a `Pair(key, Parameter(value))`.
 """
 function promote!(parameters::Dict{Symbol, Any}; aliases=Dict{Symbol, Symbol}())
     ks = keys(parameters)
     for k in ks
-        if !(typeof(parameters[k]) <: Parameter)
+        if !(parameters[k] isa AbstractParameter)
             k in keys(aliases) && (k = aliases[k])
             parameters[k] = Parameter(parameters[k])
         end

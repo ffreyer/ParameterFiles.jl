@@ -1,5 +1,5 @@
 mutable struct ParameterContainer
-    param::Dict{Symbol, Parameter}
+    param::Dict{Symbol, AbstractParameter}
     Ndims::Int
     N::Int
     dim_length::Vector{Int}
@@ -18,13 +18,15 @@ the correct index of `parameter.value`.
 function ParameterContainer(param::Dict{Symbol, Any})
     ParameterContainer(promote!(param))
 end
-function ParameterContainer(param::Dict{Symbol, Parameter})
+function ParameterContainer(param::Dict{Symbol, T}) where {T <: AbstractParameter}
     dim_lengths = Dict{Int64, Int64}()
     dim_vars = Dict{Int64, Vector{Symbol}}()
     min_N = 0
 
     for (key, value) in param
-        if value.dim == 0
+        if value isa DerivedParameter
+            # DerivedParameter's are not handled here
+        elseif value.dim == 0
             (min_N == 0) && (min_N = 1)
         elseif value.dim == -1
             if (min_N == 0) || (min_N ==1)
@@ -72,9 +74,7 @@ function ParameterContainer(param::Dict{Symbol, Parameter})
     # cummulative dim lengths
     if Ndims == 0
         cdl = Int64[min_N]; N = min_N
-        @info "Ndims = 0, cdl = $cdl, N = $N"
     else
-        @info "Ndims != 0"
         cdl = [reduce(*, dim_lengths[1:i-1], init=1) for i in 1:Ndims]
         N = reduce(*, dim_lengths, init=1)
     end
@@ -114,25 +114,40 @@ end
 ################################################################################
 
 isempty(p::ParameterContainer) = p.N == 0
-function _get_parameter_pairs(p::ParameterContainer, idx::Int)
-    collect(
-        if v.dim == 0
-            (k, v.type_tag, v.value)
-        elseif v.dim == -1
-            (k, v.type_tag, v.value[idx])
-        else
-            j = get_value_index(p, idx, v.dim)
-            (k, v.type_tag, v.value[j])
-        end for (k, v) in p.param
+
+
+function _get_parameter_tuple(
+        pc::ParameterContainer, key::Symbol, p::Parameter, idx::Int
     )
+    if p.dim == -1
+        return (key, p.type_tag, p.value[idx])
+    elseif p.dim == 0
+        return (key, p.type_tag, p.value)
+    elseif p.dim > 0
+        return (key, p.type_tag, p.value[get_value_index(pc, idx, p.dim)])
+    else
+        throw(ErrorException("Dimension $(p.dim) for key $key cannot be parsed."))
+    end
 end
+function _get_parameter_tuple(
+        pc::ParameterContainer, key::Symbol, p::DerivedParameter, idx::Int
+    )
+    input_values = [_get_parameter_tuple(pc, k, pc.param[k], idx) for k in p.keys]
+    value = p.func(map(last, input_values)...)
+    (key, typeof(value), value)
+end
+
+function _get_parameter_tuples(p::ParameterContainer, idx::Int)
+    [_get_parameter_tuple(p, k, v, idx) for (k, v) in p.param]
+end
+
 function Base.iterate(p::ParameterContainer)
     isempty(p) && return nothing
-    (_get_parameter_pairs(p, 1), 2)
+    (_get_parameter_tuples(p, 1), 2)
 end
 function Base.iterate(p::ParameterContainer, idx::Int)
     if idx <= p.N
-        return (_get_parameter_pairs(p, idx), idx+1)
+        return (_get_parameter_tuples(p, idx), idx+1)
     else
         return nothing
     end
