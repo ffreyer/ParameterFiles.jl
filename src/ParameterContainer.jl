@@ -21,19 +21,36 @@ end
 function ParameterContainer(param::Dict{Symbol, Parameter})
     dim_lengths = Dict{Int64, Int64}()
     dim_vars = Dict{Int64, Vector{Symbol}}()
+    min_N = 0
 
     for (key, value) in param
-        if !haskey(dim_lengths, value.dim) && (value.dim != 0)
-            # Generate new entry if a new (nonezero) dim is found
-            push!(dim_lengths, value.dim => length(value.value))
-            push!(dim_vars, value.dim => [key])
-        elseif haskey(dim_lengths, value.dim)
-            # Add a new key if dim already exists
-            @assert(
-                dim_lengths[value.dim] == length(value.value),
-                "Length mismatch on dim $(value.dim) for $key"
-            )
-            push!(dim_vars[value.dim], key)
+        if value.dim == 0
+            (min_N == 0) && (min_N = 1)
+        elseif value.dim == -1
+            if (min_N == 0) || (min_N ==1)
+                min_N = length(value.value)
+            else
+                small, large = minmax(N_min, length(value.value))
+                @assert(
+                    (large/small ≈ div(large, small)),
+                    "The size of `dim = -1` Parameters does not match " *
+                    "($small, $large)"
+                )
+                min_N = large
+            end
+        else
+            if !haskey(dim_lengths, value.dim) && (value.dim != 0)
+                # Generate new entry if a new (nonezero) dim is found
+                push!(dim_lengths, value.dim => length(value.value))
+                push!(dim_vars, value.dim => [key])
+            elseif haskey(dim_lengths, value.dim)
+                # Add a new key if dim already exists
+                @assert(
+                    dim_lengths[value.dim] == length(value.value),
+                    "Length mismatch on dim $(value.dim) for $key"
+                )
+                push!(dim_vars[value.dim], key)
+            end
         end
     end
 
@@ -54,8 +71,10 @@ function ParameterContainer(param::Dict{Symbol, Parameter})
 
     # cummulative dim lengths
     if Ndims == 0
-        cdl = [1]; N = 1
+        cdl = Int64[min_N]; N = min_N
+        @info "Ndims = 0, cdl = $cdl, N = $N"
     else
+        @info "Ndims != 0"
         cdl = [reduce(*, dim_lengths[1:i-1], init=1) for i in 1:Ndims]
         N = reduce(*, dim_lengths, init=1)
     end
@@ -94,9 +113,9 @@ end
 ### Iterator Interface
 ################################################################################
 
-
+isempty(p::ParameterContainer) = p.N == 0
 function _get_parameter_pairs(p::ParameterContainer, idx::Int)
-    (
+    collect(
         if v.dim == 0
             (k, v.type_tag, v.value)
         elseif v.dim == -1
@@ -107,7 +126,10 @@ function _get_parameter_pairs(p::ParameterContainer, idx::Int)
         end for (k, v) in p.param
     )
 end
-Base.iterate(p::ParameterContainer) = (_get_parameter_pairs(p, 1), 2)
+function Base.iterate(p::ParameterContainer)
+    isempty(p) && return nothing
+    (_get_parameter_pairs(p, 1), 2)
+end
 function Base.iterate(p::ParameterContainer, idx::Int)
     if idx <= p.N
         return (_get_parameter_pairs(p, idx), idx+1)
