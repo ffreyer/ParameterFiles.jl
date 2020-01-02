@@ -70,28 +70,82 @@ mutable struct IndexTimePair
 end
 Base.isless(x::IndexTimePair, y::IndexTimePair) = x.time < y.time
 
+
+
 """
-    bundle_parameters(
+    distribute(parametercontainer, runtime_estimation, N_blocks)
+
+Distribute the parameter sets in `parametercontainer` into `N_blocks`, where
+each block takes approximately the same time to run. The `runtime_estimation`
+function is used to estimate the run time of each parameter set. It should be
+be able to take each parameter as a keyword argument.
+
+Example:
+
+```
+julia> pc = ParameterContainer(Dict(:iterations => Parameter(1:10, 1)))
+julia> chunks, times = distribute(pc, (; iterations, kwargs...) -> iterations, 3)
+([[10, 5, 3], [9, 6, 4], [8, 7, 2, 1]], [18.0, 19.0, 18.0])
+```
+"""
+function distribute(
+        p::ParameterContainer,
+        runtime_estimation::Function,
+        N_blocks::Int
+    )
+
+    times = map(p) do parameters
+        d = Dict((k => p for (k, _, p) in parameters))
+        runtime_estimation(; d...)
+    end
+    idxs = reverse(sortperm(times))
+
+    @label retry_label
+    jobs = [IndexTimePair([i], times[i]) for i in idxs[1:N_blocks]]
+    heapify!(jobs)
+
+    # Itertate: long jobs .. short jobs
+    for idx in idxs[N_blocks+1:end]
+        # get fastest job
+        job = heappop!(jobs)
+        # add time
+        job.time += times[idx]
+        push!(job.idxs, idx)
+        heappush!(jobs, job)
+    end
+
+    return [job.idxs for job in jobs], [job.time for job in jobs]
+end
+
+
+
+# What was the point of this again?
+# It increases the number of blocks when it fails to stay in below
+# target_runtime...
+"""
+    distribute(
         p::ParameterContainer,
         runtime_estimation::Function,
         target_runtime,
         chunk_size
     )
 
-Attempts to bundle sets of parameters in the given `ParameterContainer` such
-that each process takes roughly the same time ≤ `target_runtime`.
+Distributes parameter sets into `K * chunk_size` blocks such that every block
+takes less time than the target_runtime. To estimate the time used per
+parameter set, the function `runtime_estimation` is queried with parameters as
+keywords. If any parameter set exceeds the target_runtime a warning will be
+displayed and the parameter set will get its own group.
 
-For example, let's assume the `ParameterContainer` holds 30 parameters sets, of
-which 20 take one unit of time and 10 take two units of time. Let's further
-assume the cluster only allows us to use full nodes, each containing 10 CPU's,
-and that we may only use them for at most 2.5 units of time.
-Here we would use `bundle_parameters(p, estimator, 2.5, 10)` to bundle
-parameters, where `estimator` is a function estimating the runtime of each
-parameter set. This should return an array with 20 elements - the first 10
-including indices for two short simulation, the latter 10 one index for each
-long simulation.
+julia> pc = ParameterContainer(Dict(:iterations => Parameter(1:10, 1)))
+julia> chunks, times = distribute(
+    pc,
+    (; iterations, kwargs...) -> iterations,
+    12,
+    3
+)
+([[7, 2], [6, 3], [5, 4], [10], [9], [8, 1]], [9.0, 9.0, 9.0, 10.0, 9.0, 9.0])
 """
-function bundle_parameters(
+function distribute(
         p::ParameterContainer,
         runtime_estimation::Function,
         target_runtime::Real,
