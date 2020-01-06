@@ -71,7 +71,6 @@ const chunked_serial_job = """
 #SBATCH --time=\$time
 #SBATCH --account=\$account
 #SBATCH --partition=\$partition
-#SBATCH --mem=\$mem
 #SBATCH --nodes=\$nodes
 #SBATCH --ntasks-per-node=\$ntasks_per_node
 #SBATCH --array=\$array
