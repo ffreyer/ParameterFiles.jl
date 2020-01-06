@@ -60,6 +60,7 @@ Requires:
 - `partition::String`: Partition to use.
 - `nodes`: Number of nodes.
 - `ntasks_per_node`: Number of tasks per node.
+- `array::String`: Job array (e.g. "7-12", "1-10:2", "1,2,3")
 - `julia::String`: Path to julia
 - `julia_args::String`: arguments to pass to julia
 - `julia_script::String`: Path to the script to execute
@@ -73,6 +74,7 @@ const chunked_serial_job = """
 #SBATCH --mem=\$mem
 #SBATCH --nodes=\$nodes
 #SBATCH --ntasks-per-node=\$ntasks_per_node
+#SBATCH --array=\$array
 
 \$julia \$julia_args \$julia_script \$args
 """
