@@ -32,7 +32,7 @@ function ParameterContainer(param::Dict{Symbol, AbstractParameter})
             if (min_N == 0) || (min_N ==1)
                 min_N = length(value.value)
             else
-                small, large = minmax(N_min, length(value.value))
+                small, large = minmax(min_N, length(value.value))
                 @assert(
                     (large/small ≈ div(large, small)),
                     "The size of `dim = -1` Parameters does not match " *
