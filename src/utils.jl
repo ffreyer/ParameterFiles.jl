@@ -114,7 +114,7 @@ function distribute(
         heappush!(jobs, job)
     end
 
-    return [[job.idxs for job in jobs]], [job.time for job in jobs]
+    return [[job.idxs for job in jobs]], [[job.time for job in jobs]]
 end
 
 
@@ -158,7 +158,7 @@ function distribute(
         "set. ($(maximum(times)) > $target_runtime)"
     )
     total_time = sum(min.(target_runtime, times))
-    n_chunks = ceil(Int64, total_time / (chunk_size * target_runtime))
+    n_chunks = floor(Int64, total_time / (chunk_size * target_runtime))
     idxs = sortperm(times)
 
     @label retry_label
@@ -185,6 +185,6 @@ function distribute(
 
     return (
         [[job.idxs for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
-        [job.time for job in jobs]
+        [[job.time for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
     )
 end
