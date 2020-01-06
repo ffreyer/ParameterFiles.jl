@@ -158,7 +158,7 @@ function distribute(
         "set. ($(maximum(times)) > $target_runtime)"
     )
     total_time = sum(min.(target_runtime, times))
-    n_chunks = floor(Int64, total_time / (chunk_size * target_runtime))
+    n_chunks = max(1, floor(Int64, total_time / (chunk_size * target_runtime)))
     idxs = sortperm(times)
 
     @label retry_label
