@@ -95,13 +95,21 @@ function load(filename::String; path="", delim="\t")
 
             if !ischunked
                 T = eval(Meta.parse(type_tag))
-                if ((T <: String) || (T <: Symbol))
+                if ((T <: AbstractString) || (T <: Symbol))
                     push!(output, Symbol(key) => T(data))
+                elseif (T <: AbstractChar)
+                    s = string(data)
+                    @assert length(s) == 1
+                    push!(output, Symbol(key) => s[1])
                 else
                     push!(output, Symbol(key) => eval(Meta.parse(data)))
                 end
             else
                 xs = eval(Meta.parse(data))
+                # If the read value is constant, repeat it
+                if length(xs) == 1
+                    xs = fill(xs, sum(chunk_sizes))
+                end
                 @assert length(xs) == sum(chunk_sizes)
                 j = 1
                 block_start = 0

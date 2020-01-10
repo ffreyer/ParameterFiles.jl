@@ -107,3 +107,7 @@ function promote!(parameters::Dict{Symbol, <: Any}; aliases=Dict{Symbol, Symbol}
     end
     convert(Dict{Symbol, AbstractParameter}, parameters)
 end
+
+
+isconstant(p::DerivedParameter) = false
+isconstant(p::Parameter) = (p.dim == 0) || (length(p.value) == 1)

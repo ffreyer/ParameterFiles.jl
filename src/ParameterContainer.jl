@@ -113,6 +113,7 @@ end
 ### Iterator Interface
 ################################################################################
 
+isconstant(pc::ParameterContainer, key::Symbol) = isconstant(pc.param[key])
 Base.isempty(p::ParameterContainer) = p.N == 0
 
 
@@ -135,7 +136,7 @@ function _get_parameter_tuple(
     if p.dim == -1
         return (key, p.type_tag, p.value[idxs])
     elseif p.dim == 0
-        return (key, p.type_tag, fill(p.value, length(idxs)))
+        return (key, p.type_tag, p.value)
     elseif p.dim > 0
         js = map(idx -> get_value_index(pc, idx, p.dim), idxs)
         return (key, p.type_tag, p.value[js])
