@@ -119,11 +119,13 @@ function distribute(
         heappush!(jobs, job)
     end
 
+    ordered_jobs = [heappop!(jobs) for _ in 1:length(jobs)]
+
     if order == :slow_first
-        return [[job.idxs for job in jobs]], [[job.time for job in jobs]]
+        return [[job.idxs for job in ordered_jobs]], [[job.time for job in jobs]]
     else
         order != :fast_first && @warn "Assuming order = :fast_first"
-        return [[reverse(job.idxs) for job in jobs]], [[job.time for job in jobs]]
+        return [[reverse(job.idxs) for job in ordered_jobs]], [[job.time for job in jobs]]
     end
 end
 
@@ -200,17 +202,18 @@ function distribute(
         end
     end
 
+    ordered_jobs = [heappop!(jobs) for _ in 1:length(jobs)]
 
     if order == :slow_first
         return (
-            [[job.idxs for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
-            [[job.time for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks]
+            [[job.idxs for job in ordered_jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
+            [[job.time for job in ordered_jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks]
         )
     else
         order != :fast_first && @warn "Assuming order = :fast_first"
         return (
-            [[reverse(job.idxs) for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
-            [[job.time for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks]
+            [[reverse(job.idxs) for job in ordered_jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
+            [[job.time for job in ordered_jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks]
         )
     end
 
