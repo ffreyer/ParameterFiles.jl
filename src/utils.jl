@@ -73,14 +73,18 @@ Base.isless(x::IndexTimePair, y::IndexTimePair) = x.time < y.time
 
 
 """
-    distribute(parametercontainer, runtime_estimation, N_blocks)
+    distribute(parametercontainer, runtime_estimation, N_blocks; kwargs...)
 
 Distribute the parameter sets in `parametercontainer` into `N_blocks`, where
 each block takes approximately the same time to run. The `runtime_estimation`
 function is used to estimate the run time of each parameter set. It should be
 be able to take each parameter as a keyword argument.
 
-Example:
+#### Keyword Arguments:
+- `order = :fast_first`: Ordering of the parameter queue. (:fast_first or :slow_first)
+
+
+#### Example:
 
 ```
 julia> pc = ParameterContainer(Dict(:iterations => Parameter(1:10, 1)))
@@ -91,7 +95,8 @@ julia> chunks, times = distribute(pc, (; iterations, kwargs...) -> iterations, 3
 function distribute(
         p::ParameterContainer,
         runtime_estimation::Function,
-        N_blocks::Int
+        N_blocks::Int,
+        order=:fast_first
     )
 
     times = map(p) do parameters
@@ -114,7 +119,12 @@ function distribute(
         heappush!(jobs, job)
     end
 
-    return [[job.idxs for job in jobs]], [[job.time for job in jobs]]
+    if order == :slow_first
+        return [[job.idxs for job in jobs]], [[job.time for job in jobs]]
+    else
+        order != :fast_first && @warn "Assuming order = :fast_first"
+        return [[reverse(job.idxs) for job in jobs]], [[job.time for job in jobs]]
+    end
 end
 
 
@@ -124,7 +134,8 @@ end
         p::ParameterContainer,
         runtime_estimation::Function,
         target_runtime,
-        N_blocks
+        N_blocks;
+        kwargs...
     )
 
 Distributes parameter sets into `K * N_blocks` such that every block
@@ -132,6 +143,11 @@ takes less time than the `target_runtime`. To estimate the time used per
 parameter set, the function `runtime_estimation` is queried with parameters as
 keywords. If any parameter set exceeds the target_runtime a warning will be
 displayed and the parameter set will get its own group.
+
+#### Keyword Arguments:
+- `order = :fast_first`: Ordering of the parameter queue. (:fast_first or :slow_first)
+
+#### Example:
 
 julia> pc = ParameterContainer(Dict(:iterations => Parameter(1:10, 1)))
 julia> chunks, times = distribute(
@@ -146,7 +162,8 @@ function distribute(
         p::ParameterContainer,
         runtime_estimation::Function,
         target_runtime::Real,
-        chunk_size::Int
+        chunk_size::Int;
+        order = :fast_first
     )
 
     times = map(p) do parameters
@@ -183,8 +200,19 @@ function distribute(
         end
     end
 
-    return (
-        [[job.idxs for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
-        [[job.time for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
-    )
+
+    if order == :slow_first
+        return (
+            [[job.idxs for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
+            [[job.time for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
+        )
+    else
+        order != :fast_first && @warn "Assuming order = :fast_first"
+        return [[reverse(job.idxs) for job in jobs]], [[job.time for job in jobs]]
+        return (
+            [[reverse(job.idxs) for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
+            [[job.time for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
+        )
+    end
+
 end
