@@ -95,7 +95,7 @@ julia> chunks, times = distribute(pc, (; iterations, kwargs...) -> iterations, 3
 function distribute(
         p::ParameterContainer,
         runtime_estimation::Function,
-        N_blocks::Int,
+        N_blocks::Int;
         order=:fast_first
     )
 
