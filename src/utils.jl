@@ -204,14 +204,13 @@ function distribute(
     if order == :slow_first
         return (
             [[job.idxs for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
-            [[job.time for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
+            [[job.time for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks]
         )
     else
         order != :fast_first && @warn "Assuming order = :fast_first"
-        return [[reverse(job.idxs) for job in jobs]], [[job.time for job in jobs]]
         return (
             [[reverse(job.idxs) for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
-            [[job.time for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks],
+            [[job.time for job in jobs[(i-1)*chunk_size+1 : i*chunk_size]] for i in 1:n_chunks]
         )
     end
 
