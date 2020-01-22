@@ -36,19 +36,19 @@
     @test length(pc) == 6
 
     @test collect(pc) == Any[
-        Tuple{Symbol,DataType,Any}[(:A, Int64, 1), (:D, Int64, 11), (:B, Int64, 1), (:E, Char, 'A'), (:C, Int64, 10)],
-        Tuple{Symbol,DataType,Any}[(:A, Int64, 1), (:D, Int64, 12), (:B, Int64, 2), (:E, Char, 'B'), (:C, Int64, 10)],
-        Tuple{Symbol,DataType,Any}[(:A, Int64, 1), (:D, Int64, 13), (:B, Int64, 3), (:E, Char, 'C'), (:C, Int64, 10)],
-        Tuple{Symbol,DataType,Any}[(:A, Int64, 1), (:D, Int64, 21), (:B, Int64, 1), (:E, Char, 'D'), (:C, Int64, 20)],
-        Tuple{Symbol,DataType,Any}[(:A, Int64, 1), (:D, Int64, 22), (:B, Int64, 2), (:E, Char, 'E'), (:C, Int64, 20)],
-        Tuple{Symbol,DataType,Any}[(:A, Int64, 1), (:D, Int64, 23), (:B, Int64, 3), (:E, Char, 'F'), (:C, Int64, 20)]
+        Tuple{Symbol,DataType,Bool,Any}[(:A, Int64, 1, 1), (:D, Int64, 1, 11), (:B, Int64, 1, 1), (:E, Char, 1, 'A'), (:C, Int64, 1, 10)],
+        Tuple{Symbol,DataType,Bool,Any}[(:A, Int64, 1, 1), (:D, Int64, 1, 12), (:B, Int64, 1, 2), (:E, Char, 1, 'B'), (:C, Int64, 1, 10)],
+        Tuple{Symbol,DataType,Bool,Any}[(:A, Int64, 1, 1), (:D, Int64, 1, 13), (:B, Int64, 1, 3), (:E, Char, 1, 'C'), (:C, Int64, 1, 10)],
+        Tuple{Symbol,DataType,Bool,Any}[(:A, Int64, 1, 1), (:D, Int64, 1, 21), (:B, Int64, 1, 1), (:E, Char, 1, 'D'), (:C, Int64, 1, 20)],
+        Tuple{Symbol,DataType,Bool,Any}[(:A, Int64, 1, 1), (:D, Int64, 1, 22), (:B, Int64, 1, 2), (:E, Char, 1, 'E'), (:C, Int64, 1, 20)],
+        Tuple{Symbol,DataType,Bool,Any}[(:A, Int64, 1, 1), (:D, Int64, 1, 23), (:B, Int64, 1, 3), (:E, Char, 1, 'F'), (:C, Int64, 1, 20)]
     ]
 
-    @test ParameterFiles._get_parameter_set(pc, [1, 3, 5]) == Tuple{Symbol,DataType,Any}[
-        (:A, Int64, 1),
-        (:D, Int64, [11, 13, 22]),
-        (:B, Int64, [1, 3, 2]),
-        (:E, Char, "ACE"),
-        (:C, Int64, [10, 10, 20])
+    @test ParameterFiles._get_parameter_set(pc, [1, 3, 5]) == Tuple{Symbol,DataType,Bool,Any}[
+        (:A, Int64, 1, 1),
+        (:D, Int64, 0, [11, 13, 22]),
+        (:B, Int64, 0, [1, 3, 2]),
+        (:E, Char, 0, "ACE"),
+        (:C, Int64, 0, [10, 10, 20])
     ]
 end

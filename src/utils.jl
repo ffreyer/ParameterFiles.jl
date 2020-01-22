@@ -72,6 +72,11 @@ Base.isless(x::IndexTimePair, y::IndexTimePair) = x.time < y.time
 
 
 
+# TODO: add flag
+# use_up_time vs
+# make_sure_everything finishes
+
+
 """
     distribute(parametercontainer, runtime_estimation, N_blocks; kwargs...)
 

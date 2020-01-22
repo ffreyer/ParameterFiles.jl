@@ -27,8 +27,9 @@ function save(
 
     for (parameters, filename) in zip(p, filenames)
         open(joinpath(path, filename), "w") do file
-            for (key, type_tag, value) in parameters
-                println(file, key, delim, type_tag, delim, value)
+            println(file, "# key   (element)type   is constant?   value/s")
+            for (key, type_tag, isconst, value) in parameters
+                println(file, key, delim, type_tag, delim, isconst, delim, value)
             end
         end
     end
@@ -53,11 +54,12 @@ function save(
 
     for (sub_chunks, filename) in zip(chunks, filenames)
         open(joinpath(path, filename), "w") do file
+            println(file, "# key   (element)type   is constant?   value/s")
             print(file, "chunks\t")
             join(file, string.(length.(sub_chunks)), "\t")
             println(file)
-            for (key, type_tag, values) in _get_parameter_set(p, vcat(sub_chunks...))
-                println(file, key, delim, type_tag, delim, values)
+            for (key, type_tag, isconst, values) in _get_parameter_set(p, vcat(sub_chunks...))
+                println(file, key, delim, type_tag, delim, isconst, delim, values)
             end
         end
     end
@@ -79,10 +81,11 @@ dictionaries instead.
 """
 function load(filename::String; path="", delim="\t")
     output = Dict{Symbol, Any}()
-    ischunked = false
     chunk_sizes = Int64[]
+    ischunked = false
     open(joinpath(path, filename), "r") do f
         for line in eachline(f)
+            startswith(line, "#") && continue
             if startswith(line, "chunks")
                 @assert isempty(output) "\"chunks\" should appear first in the file."
                 chunk_sizes = parse.(Int64, split(line, "\t")[2:end])
@@ -91,21 +94,49 @@ function load(filename::String; path="", delim="\t")
                 continue
             end
 
-            key, type_tag, data = split(line, delim)
+            key, type_tag, isconst, data = split(line, delim)
+            T = eval(Meta.parse(type_tag))
 
-            if !ischunked
-                T = eval(Meta.parse(type_tag))
+            if parse(Bool, isconst)
                 if ((T <: AbstractString) || (T <: Symbol))
-                    push!(output, Symbol(key) => T(data))
+                    if ischunked
+                        for inner in output
+                            for dict in inner
+                                push!(dict, Symbol(key) => T(data))
+                            end
+                        end
+                    else
+                        push!(output, Symbol(key) => T(data))
+                    end
                 elseif (T <: AbstractChar)
                     s = string(data)
                     @assert length(s) == 1
-                    push!(output, Symbol(key) => s[1])
+                    if ischunked
+                        for inner in output
+                            for dict in inner
+                                push!(dict, Symbol(key) => s[1])
+                            end
+                        end
+                    else
+                        push!(output, Symbol(key) => s[1])
+                    end
                 else
-                    push!(output, Symbol(key) => eval(Meta.parse(data)))
+                    if ischunked
+                        for inner in output
+                            for dict in inner
+                                push!(dict, Symbol(key) => eval(Meta.parse(data)))
+                            end
+                        end
+                    else
+                        push!(output, Symbol(key) => eval(Meta.parse(data)))
+                    end
                 end
-            else
-                xs = eval(Meta.parse(data))
+            else # only applies to chyunked jobs
+                xs = if T <: Char
+                    data
+                else
+                    eval(Meta.parse(data))
+                end
                 # If the read value is constant, repeat it
                 if length(xs) == 1
                     xs = fill(xs, sum(chunk_sizes))

@@ -121,11 +121,11 @@ function _get_parameter_tuple(
         pc::ParameterContainer, key::Symbol, p::Parameter, idx::Int
     )
     if p.dim == -1
-        return (key, p.type_tag, p.value[idx])
+        return (key, p.type_tag, true, p.value[idx])
     elseif p.dim == 0
-        return (key, p.type_tag, p.value)
+        return (key, p.type_tag, true, p.value)
     elseif p.dim > 0
-        return (key, p.type_tag, p.value[get_value_index(pc, idx, p.dim)])
+        return (key, p.type_tag, true, p.value[get_value_index(pc, idx, p.dim)])
     else
         throw(ErrorException("Dimension $(p.dim) for key $key cannot be parsed."))
     end
@@ -134,12 +134,12 @@ function _get_parameter_tuple(
         pc::ParameterContainer, key::Symbol, p::Parameter, idxs::AbstractArray
     )
     if p.dim == -1
-        return (key, p.type_tag, p.value[idxs])
+        return (key, p.type_tag, false, p.value[idxs])
     elseif p.dim == 0
-        return (key, p.type_tag, p.value)
+        return (key, p.type_tag, true, p.value)
     elseif p.dim > 0
         js = map(idx -> get_value_index(pc, idx, p.dim), idxs)
-        return (key, p.type_tag, p.value[js])
+        return (key, p.type_tag, false, p.value[js])
     else
         throw(ErrorException("Dimension $(p.dim) for key $key cannot be parsed."))
     end
@@ -152,7 +152,7 @@ function _get_parameter_tuple(
         last(_get_parameter_tuple(pc, k, pc.param[k], idx))
     end
     value = p.func(map(last, input_values)...)
-    (key, typeof(value), value)
+    (key, typeof(value), true, value)
 end
 function _get_parameter_tuple(
         pc::ParameterContainer, key::Symbol, p::DerivedParameter,
@@ -162,14 +162,14 @@ function _get_parameter_tuple(
         last(_get_parameter_tuple(pc, k, pc.param[k], idxs))
     end
     value = p.func.(input_values...)
-    (key, eltype(value), value)
+    (key, eltype(value), false,  value)
 end
 
 # Maybe a bit missnamed...
 # This returns a parameter set for a given index idx, if idx is an Integer, i.e.
-# (key, type, value) for each paramater at idx
+# (key, type, true, value) for each paramater at idx
 # OR
-# (key, type, value[idx[1]] ... value[idx[end]])
+# (key, type, false, value[idx[1]] ... value[idx[end]])
 # if idx is an array of indices
 function _get_parameter_set(p::ParameterContainer, idx)
     [_get_parameter_tuple(p, k, v, idx) for (k, v) in p.param]
