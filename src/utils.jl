@@ -105,7 +105,7 @@ function distribute(
     )
 
     times = map(p) do parameters
-        d = Dict((k => p for (k, _, p) in parameters))
+        d = Dict((k => p for (k, _, _, p) in parameters))
         runtime_estimation(; d...)
     end
     idxs = reverse(sortperm(times))
@@ -174,7 +174,7 @@ function distribute(
     )
 
     times = map(p) do parameters
-        d = Dict((k => p for (k, _, p) in parameters))
+        d = Dict((k => p for (k, _, _, p) in parameters))
         runtime_estimation(; d...)
     end
     maximum(times) > target_runtime && @warn(
