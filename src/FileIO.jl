@@ -66,6 +66,32 @@ function save(
 end
 
 
+function save(
+        p::ParameterContainer,
+        idxs::Vector{Int};
+        path="",
+        filename = "1.param",
+        delim = "\t",
+        overwrite = false,
+    )
+    isdir(path) || mkdir(path)
+    if !overwrite && isfile(joinpath(path, filename))
+        error(
+            "One or more files would be overwritten in '$path'. Set " *
+            "`overwrite = true` to allow this."
+        )
+    end
+
+    open(joinpath(path, filename), "w") do file
+        println(file, "# key   (element)type   is constant?   value/s")
+        println(file, "chunks\t$(length(idxs))")
+        for (key, type_tag, isconst, values) in _get_parameter_set(p, idxs)
+            println(file, key, delim, type_tag, delim, isconst, delim, values)
+        end
+    end
+end
+
+
 
 
 ################################################################################

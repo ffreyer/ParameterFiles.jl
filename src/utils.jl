@@ -223,3 +223,46 @@ function distribute(
     end
 
 end
+
+
+
+"""
+    distribute_for_pmap(
+        p::ParameterContainer,
+        runtime_estimation::Function,
+        target_runtime,
+        tasks_per_node;
+        kwargs...
+    )
+
+Sorts jobs based on estimated runtime. Returns a list of indices and the number
+of required nodes. Each index is associated with a parameter set in the given
+parametercontainer. The first index is the longest running parameter set, the
+last the shortest.
+
+This is useful in conjunction with pmap.
+"""
+function distribute_for_pmap(
+        p::ParameterContainer,
+        runtime_estimation::Function,
+        target_runtime::Real,
+        chunk_size::Int;
+        # order = :fast_first
+    )
+
+    times = map(p) do parameters
+        d = Dict((k => p for (k, _, _, p) in parameters))
+        runtime_estimation(; d...)
+    end
+    maximum(times) > target_runtime && @warn(
+        "The estimated runtime exceeds the target for atleast one parameter " *
+        "set. ($(maximum(times)) > $target_runtime)"
+    )
+    times = min.(times, target_runtime)
+    total_time = sum(times)
+    n_chunks = max(1, floor(Int64, total_time / (chunk_size * target_runtime)))
+    idxs = sortperm(times, order=Base.Reverse)
+
+    # Let pmap handle the rest
+    return idxs, n_chunks
+end
