@@ -101,8 +101,13 @@ function promote!(parameters::Dict{Symbol, <: Any}; aliases=Dict{Symbol, Symbol}
     ks = keys(parameters)
     for k in ks
         if !(parameters[k] isa AbstractParameter)
-            k in keys(aliases) && (k = aliases[k])
-            parameters[k] = Parameter(parameters[k])
+            if k in keys(aliases)
+                new_key = aliases[k]
+                parameters[new_key] = Parameter(parameters[k])
+                delete!(parameters, k)
+            else
+                parameters[k] = Parameter(parameters[k])
+            end
         end
     end
     convert(Dict{Symbol, AbstractParameter}, parameters)
