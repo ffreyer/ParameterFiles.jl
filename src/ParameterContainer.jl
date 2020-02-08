@@ -154,17 +154,22 @@ function _get_parameter_tuple(
     input_values = map(p.keys) do k
         last(_get_parameter_tuple(pc, k, pc.param[k], idx))
     end
-    value = p.func(map(last, input_values)...)
+    value = p.func(input_values...)
+
     (key, typeof(value), true, value)
 end
 function _get_parameter_tuple(
         pc::ParameterContainer, key::Symbol, p::DerivedParameter,
         idxs::AbstractArray
     )
-    input_values = map(p.keys) do k
-        last(_get_parameter_tuple(pc, k, pc.param[k], idxs))
+    
+    value = map(idxs) do idx
+        input_values = map(p.keys) do k
+            last(_get_parameter_tuple(pc, k, pc.param[k], idx))
+        end
+        p.func(input_values...)
     end
-    value = p.func.(input_values...)
+
     (key, eltype(value), false,  value)
 end
 
