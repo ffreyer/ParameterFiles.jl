@@ -9,14 +9,17 @@ end
 
 
 """
-    ParameterContainer(parameters)
+    ParameterContainer(parameters; aliases = Dict{Symbol, Symbol}())
 
 Returns the total (cummulative) number of parameters `N` and a function that
 provides a mapping from a linear index `n` (1 ≤ n ≤ N) and a given `dim` to
 the correct index of `parameter.value`.
 """
-function ParameterContainer(param::Dict{Symbol, <:Any})
-    ParameterContainer(promote!(param))
+function ParameterContainer(
+        param::Dict{Symbol, <:Any};
+        aliases::Dict{Symbol, Symbol} = Dict{Symbol, Symbol}()
+    )
+    ParameterContainer(promote!(param, aliases=aliases))
 end
 function ParameterContainer(param::Dict{Symbol, AbstractParameter})
     dim_lengths = Dict{Int64, Int64}()
