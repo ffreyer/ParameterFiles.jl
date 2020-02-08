@@ -285,7 +285,7 @@ function Base.show(io::IO, p::ParameterContainer)
     for (i, parameters) in enumerate(p)
         println(
             io, "\t", i, "\t [",
-            join((":$k => $v" for (k, _, v) in parameters), ", "), "]"
+            join((":$k => $v" for (k, _, _, v) in parameters), ", "), "]"
         )
     end
 end
