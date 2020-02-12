@@ -99,6 +99,33 @@ Promotes any `Pair(key, value)` in `parameters`, where `value` is not of type
 """
 function promote!(parameters::Dict{Symbol, <: Any}; aliases=Dict{Symbol, Symbol}())
     ks = keys(parameters)
+
+    # Clean up dims
+    dims = filter(
+        dim -> dim > 0,
+        map(values(parameters)) do v
+            if v isa Parameter
+                return max(0, v.dim)
+            else
+                return 0
+            end
+        end |> unique |> sort
+    )
+
+    dimmap = Dict{Int64, Int64}((dim => i for (i, dim) in enumerate(dims)))
+    for k in ks
+        if parameters[k] isa Parameter
+            if dimmap[parameters[k].dim] != parameters[k].dim
+                parameters[k] = Parameter(
+                    parameters[k].value,
+                    dimmap[parameters[k].dim],
+                    parameters[k].type_tag
+                )
+            end
+        end
+    end
+
+    # promote everything else to Parameters
     for k in ks
         if !(parameters[k] isa AbstractParameter)
             k in keys(aliases) && (k = aliases[k])
