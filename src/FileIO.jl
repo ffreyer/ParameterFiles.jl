@@ -68,6 +68,34 @@ end
 
 function save(
         p::ParameterContainer,
+        chunks::Vector{Vector{Int}};
+        path="",
+        filenames = ("$(i).param" for i in 1:length(chunks)),
+        delim = "\t",
+        overwrite = false,
+    )
+    isdir(path) || mkdir(path)
+    if !overwrite && isfile(joinpath(path, filename))
+        error(
+            "One or more files would be overwritten in '$path'. Set " *
+            "`overwrite = true` to allow this."
+        )
+    end
+
+    for (sub_chunk, filename) in zip(chunks, filenames)
+        open(joinpath(path, filename), "w") do file
+            println(file, "# key   (element)type   is constant?   value/s")
+            println(file, "chunks\t$(length(sub_chunk))")
+            for (key, type_tag, isconst, values) in _get_parameter_set(p, sub_chunk)
+                println(file, key, delim, type_tag, delim, isconst, delim, values)
+            end
+        end
+    end
+end
+
+
+function save(
+        p::ParameterContainer,
         idxs::Vector{Int};
         path="",
         filename = "1.param",

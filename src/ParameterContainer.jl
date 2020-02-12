@@ -9,14 +9,17 @@ end
 
 
 """
-    ParameterContainer(parameters)
+    ParameterContainer(parameters; aliases = Dict{Symbol, Symbol}())
 
 Returns the total (cummulative) number of parameters `N` and a function that
 provides a mapping from a linear index `n` (1 ≤ n ≤ N) and a given `dim` to
 the correct index of `parameter.value`.
 """
-function ParameterContainer(param::Dict{Symbol, <:Any})
-    ParameterContainer(promote!(param))
+function ParameterContainer(
+        param::Dict{Symbol, <:Any};
+        aliases::Dict{Symbol, Symbol} = Dict{Symbol, Symbol}()
+    )
+    ParameterContainer(promote!(param, aliases=aliases))
 end
 function ParameterContainer(param::Dict{Symbol, AbstractParameter})
     dim_lengths = Dict{Int64, Int64}()
@@ -151,17 +154,22 @@ function _get_parameter_tuple(
     input_values = map(p.keys) do k
         last(_get_parameter_tuple(pc, k, pc.param[k], idx))
     end
-    value = p.func(map(last, input_values)...)
+    value = p.func(input_values...)
+
     (key, typeof(value), true, value)
 end
 function _get_parameter_tuple(
         pc::ParameterContainer, key::Symbol, p::DerivedParameter,
         idxs::AbstractArray
     )
-    input_values = map(p.keys) do k
-        last(_get_parameter_tuple(pc, k, pc.param[k], idxs))
+    
+    value = map(idxs) do idx
+        input_values = map(p.keys) do k
+            last(_get_parameter_tuple(pc, k, pc.param[k], idx))
+        end
+        p.func(input_values...)
     end
-    value = p.func.(input_values...)
+
     (key, eltype(value), false,  value)
 end
 
@@ -282,7 +290,7 @@ function Base.show(io::IO, p::ParameterContainer)
     for (i, parameters) in enumerate(p)
         println(
             io, "\t", i, "\t [",
-            join((":$k => $v" for (k, _, v) in parameters), ", "), "]"
+            join((":$k => $v" for (k, _, _, v) in parameters), ", "), "]"
         )
     end
 end

@@ -46,6 +46,7 @@ function step(state::WordMatchState, ::Val{C}) where {C}
 end
 
 step(::InterpolationDoneState, ::Val{'$'}) = InterpolationStartState()
+step(::InterpolationDoneState, ::Val{'\\'}) = IgnoreState()
 step(::InterpolationDoneState, ::Any) = NormalState()
 
 
@@ -151,8 +152,8 @@ function resolve(str, debug; kwargs...)
     join(blocks)
 end
 
-rec_meta_replace(x, kwdict::Dict{Symbol, Any}) = x
-function rec_meta_replace(s::Symbol, kwdict::Dict{Symbol, Any})
+rec_meta_replace(x, kwdict::Dict{Symbol, T}) where {T} = x
+function rec_meta_replace(s::Symbol, kwdict::Dict{Symbol, T}) where {T}
     if haskey(kwdict, s)
         return kwdict[s]
     else
@@ -162,7 +163,7 @@ function rec_meta_replace(s::Symbol, kwdict::Dict{Symbol, Any})
         )
     end
 end
-function rec_meta_replace(expr::Expr, kwdict::Dict{Symbol, Any})
+function rec_meta_replace(expr::Expr, kwdict::Dict{Symbol, T}) where {T}
     for i in eachindex(expr.args)
         (i == 1) && (expr.head == :call) && continue
         expr.args[i] = rec_meta_replace(expr.args[i], kwdict)
