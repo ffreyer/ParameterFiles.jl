@@ -112,7 +112,9 @@ function promote!(parameters::Dict{Symbol, <: Any}; aliases=Dict{Symbol, Symbol}
         end |> unique |> sort
     )
 
-    dimmap = Dict{Int64, Int64}((dim => i for (i, dim) in enumerate(dims)))
+    dimmap = Dict{Int64, Int64}(
+        -1 => -1, 0 => 0, (dim => i for (i, dim) in enumerate(dims))...
+    )
     for k in ks
         if parameters[k] isa Parameter
             if dimmap[parameters[k].dim] != parameters[k].dim

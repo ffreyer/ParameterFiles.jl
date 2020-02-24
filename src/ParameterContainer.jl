@@ -162,7 +162,7 @@ function _get_parameter_tuple(
         pc::ParameterContainer, key::Symbol, p::DerivedParameter,
         idxs::AbstractArray
     )
-    
+
     value = map(idxs) do idx
         input_values = map(p.keys) do k
             last(_get_parameter_tuple(pc, k, pc.param[k], idx))
@@ -182,6 +182,8 @@ end
 function _get_parameter_set(p::ParameterContainer, idx)
     [_get_parameter_tuple(p, k, v, idx) for (k, v) in p.param]
 end
+
+Base.getindex(p::ParameterContainer, idx) = _get_parameter_set(p, idx)
 
 function Base.iterate(p::ParameterContainer)
     isempty(p) && return nothing
